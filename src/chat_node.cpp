@@ -7,6 +7,8 @@
 #include<sstream>
 #include<cstdlib>
 #include<cstdio>
+#include<ctime>
+#include<iomanip>
 
 class ChatNode : public rclcpp::Node {
 public:
@@ -26,12 +28,11 @@ public:
             subscription_.reset();
         }
 
-        std::string topic_name = "/chat/" + group_name;
+        const std::string topic_name = "/chat/" + group_name;
 
         publisher_ = create_publisher<std_msgs::msg::String>(topic_name, 10);
 
-        subscription_ = create_subscription<std_msgs::msg::String>
-        (
+        subscription_ = create_subscription<std_msgs::msg::String>(
             topic_name, 10,
             [this](const std_msgs::msg::String::SharedPtr msg) 
             {
@@ -45,11 +46,13 @@ public:
 
     void send_message(const std::string & message_text) 
     {
-        if(!text.empty())
+        if(!message_text.empty())
         {
+            const auto timestamp = current_timestamp();
             auto message = std_msgs::msg::String();
-            message.data = username_ + ": " + message_text;
+            message.data = username_ + "|" + timestamp + "|" + message_text;
             publisher_->publish(message);
+            std::cout << "[" << timestamp << "] " << username_ << ": " << message_text << std::endl;
         }
     }
 
@@ -59,10 +62,42 @@ public:
 private:
     void message_callback(const std_msgs::msg::String::SharedPtr msg) 
     {
-        if(msg->data.find(username_ + ": ") != 0) 
+        const auto & data = msg->data;
+
+        const auto first_sep = data.find('|');
+        const auto second_sep = (first_sep == std::string::npos) ? std::string::npos : data.find('|', first_sep + 1);
+
+        if(first_sep == std::string::npos || second_sep == std::string::npos)
         {
-            RCLCPP_INFO(get_logger(), "%s", msg->data.c_str());
+            RCLCPP_INFO(get_logger(), "%s", data.c_str());
+            return;
         }
+
+        const auto sender = data.substr(0, first_sep);
+        if(sender == username_)
+        {
+            return;
+        }
+
+        const auto timestamp = data.substr(first_sep + 1, second_sep - first_sep - 1);
+        const auto text = data.substr(second_sep + 1);
+
+        std::cout << "[" << timestamp << "] " << sender << ": " << text << std::endl;
+    }
+
+    std::string current_timestamp() const
+    {
+        const auto now = std::chrono::system_clock::now();
+        const auto tt = std::chrono::system_clock::to_time_t(now);
+        std::tm tm{};
+#if defined(_WIN32)
+        localtime_s(&tm, &tt);
+#else
+        localtime_r(&tt, &tm);
+#endif
+        std::ostringstream oss;
+        oss << std::put_time(&tm, "%H:%M:%S");
+        return oss.str();
     }
     std::string username_;
     std::string current_group_;
@@ -72,7 +107,7 @@ private:
 
 static volatile bool running = true;
 
-void signal_handler(int signum) 
+void signal_handler(int) 
 {
     running = false;
 }
@@ -97,6 +132,8 @@ int main(int argc, char ** argv)
     {
         rclcpp::spin(chat_node);
     });
+
+    std::string input_line;
 
     try 
     {
