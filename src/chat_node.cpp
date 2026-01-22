@@ -191,5 +191,5 @@ int main(int argc, char ** argv)
     }
     std::cout<<"Exiting chat client. Goodbye!"<<std::endl; 
     rclcpp::shutdown();
-    return 0;
+    return 0; //terminate program
 }
