@@ -9,6 +9,10 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(wxWidgets COMPONENTS core base QUIET)
+
+# include directory
+include_directories(include)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -22,11 +26,49 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+# Create shared library
+add_library(chat_node_lib SHARED src/chat_node_impl.cpp)
+ament_target_dependencies(chat_node_lib rclcpp std_msgs)
+target_include_directories(chat_node_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+# CLI executable (old chat_node)
 add_executable(chat_node src/chat_node.cpp)
+target_link_libraries(chat_node chat_node_lib)
 ament_target_dependencies(chat_node rclcpp std_msgs)
+target_include_directories(chat_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+# GUI executable (if wxWidgets is found)
+if(wxWidgets_FOUND)
+  include(${wxWidgets_USE_FILE})
+  
+  add_executable(chat_gui src/chat_gui_main.cpp)
+  target_link_libraries(chat_gui chat_node_lib ${wxWidgets_LIBRARIES})
+  ament_target_dependencies(chat_gui rclcpp std_msgs)
+  target_include_directories(chat_gui PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  
+  install(TARGETS chat_gui DESTINATION lib/${PROJECT_NAME})
+  message(STATUS "wxWidgets found. Building chat_gui...")
+else()
+  message(WARNING "wxWidgets not found. Skipping GUI build. Install wxWidgets to enable GUI.")
+endif()
 
 install(TARGETS
   chat_node
+  chat_node_lib
   DESTINATION lib/${PROJECT_NAME}
 )
+
+install(DIRECTORY include/
+  DESTINATION include
+)
+
 ament_package()
