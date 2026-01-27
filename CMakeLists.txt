@@ -33,6 +33,10 @@ target_include_directories(chat_node_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+set_target_properties(chat_node_lib PROPERTIES
+  SOVERSION 0
+  VERSION 0.1.0
+)
 
 # CLI executable (old chat_node)
 add_executable(chat_node src/chat_node.cpp)
@@ -41,6 +45,9 @@ ament_target_dependencies(chat_node rclcpp std_msgs)
 target_include_directories(chat_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+)
+set_target_properties(chat_node PROPERTIES
+  INSTALL_RPATH "$ORIGIN"
 )
 
 # GUI executable (if wxWidgets is found)
@@ -53,6 +60,9 @@ if(wxWidgets_FOUND)
   target_include_directories(chat_gui PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+  )
+  set_target_properties(chat_gui PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
   )
   
   install(TARGETS chat_gui DESTINATION lib/${PROJECT_NAME})
