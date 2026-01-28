@@ -65,8 +65,20 @@ if(wxWidgets_FOUND)
     INSTALL_RPATH "$ORIGIN"
   )
   
-  install(TARGETS chat_gui DESTINATION lib/${PROJECT_NAME})
-  message(STATUS "wxWidgets found. Building chat_gui...")
+  # Launcher executable
+  add_executable(chat_launcher src/chat_launcher.cpp)
+  target_link_libraries(chat_launcher chat_node_lib ${wxWidgets_LIBRARIES})
+  ament_target_dependencies(chat_launcher rclcpp std_msgs)
+  target_include_directories(chat_launcher PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  set_target_properties(chat_launcher PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
+  )
+  
+  install(TARGETS chat_gui chat_launcher DESTINATION lib/${PROJECT_NAME})
+  message(STATUS "wxWidgets found. Building chat_gui and chat_launcher...")
 else()
   message(WARNING "wxWidgets not found. Skipping GUI build. Install wxWidgets to enable GUI.")
 endif()
