@@ -9,7 +9,8 @@
 wxDECLARE_EVENT(wxEVT_CHAT_MESSAGE, wxThreadEvent);
 wxDEFINE_EVENT(wxEVT_CHAT_MESSAGE, wxThreadEvent);
 
-class ChatFrame : public wxFrame {
+class ChatFrame : public wxFrame 
+{
 public:
     ChatFrame(const wxString& title);
     ~ChatFrame();
@@ -44,7 +45,8 @@ private:
     void MessageHandlerLoop();
     void ProcessQueuedMessages();
 
-    enum {
+    enum 
+    {
         ID_SEND_BUTTON = 1001,
         ID_JOIN_BUTTON = 1002,
         ID_MESSAGE_INPUT = 1003,
@@ -53,14 +55,16 @@ private:
     };
 };
 
-class ChatApp : public wxApp {
+class ChatApp : public wxApp 
+{
 public:
     bool OnInit() override;
 };
 
 wxIMPLEMENT_APP(ChatApp);
 
-bool ChatApp::OnInit() {
+bool ChatApp::OnInit() 
+{
     ChatFrame* frame = new ChatFrame("ROS2 Chat Client - GUI");
     frame->Show(true);
     return true;
@@ -130,14 +134,17 @@ ChatFrame::ChatFrame(const wxString& title)
     InitializeChatNode();
 
     // Start ROS spin thread
-    ros_spin_thread_ = std::thread([this]() {
-        if(chat_node_) {
+    ros_spin_thread_ = std::thread([this]() 
+    {
+        if(chat_node_) 
+        {
             rclcpp::spin(chat_node_);
         }
     });
 
     // Start message handler thread
-    message_handler_thread_ = std::thread([this]() {
+    message_handler_thread_ = std::thread([this]() 
+    {
         MessageHandlerLoop();
     });
 
@@ -145,30 +152,37 @@ ChatFrame::ChatFrame(const wxString& title)
     SetStatusText("Connected. Ready to chat.", 0);
 }
 
-ChatFrame::~ChatFrame() {
+ChatFrame::~ChatFrame() 
+{
     running_ = false;
-    if(ros_spin_thread_.joinable()) {
+    if(ros_spin_thread_.joinable()) 
+    {
         ros_spin_thread_.join();
     }
-    if(message_handler_thread_.joinable()) {
+    if(message_handler_thread_.joinable()) 
+    {
         message_handler_thread_.join();
     }
     rclcpp::shutdown();
 }
 
-void ChatFrame::InitializeChatNode() {
+void ChatFrame::InitializeChatNode()    
+{
     // Get username from user
     wxTextEntryDialog username_dialog(this, "Enter your username:", "Chat Client");
-    if(username_dialog.ShowModal() != wxID_OK) {
+    if(username_dialog.ShowModal() != wxID_OK) 
+    {
         username_dialog.SetValue("Anonymous");
     }
 
     std::string username = std::string(username_dialog.GetValue().mb_str());
-    if(username.empty()) {
+    if(username.empty()) 
+    {
         username = "Anonymous";
     }
 
-    if(!rclcpp::ok()) {
+    if(!rclcpp::ok()) 
+    {
         int argc = 0;
         char** argv = nullptr;
         rclcpp::init(argc, argv);
@@ -177,7 +191,8 @@ void ChatFrame::InitializeChatNode() {
     chat_node_ = std::make_shared<ChatNode>(username);
 
     // Set message callback
-    chat_node_->set_message_callback([this](const std::string& sender, const std::string& timestamp, const std::string& text) {
+    chat_node_->set_message_callback([this](const std::string& sender, const std::string& timestamp, const std::string& text) 
+    {
         std::lock_guard<std::mutex> lock(queue_mutex_);
         message_queue_.push(std::make_tuple(sender, timestamp, text));
     });
@@ -185,23 +200,30 @@ void ChatFrame::InitializeChatNode() {
     status_text_->SetLabel(wxString::Format("Connected as: %s in group: %s", username, "general"));
 }
 
-void ChatFrame::MessageHandlerLoop() {
-    while(running_) {
+void ChatFrame::MessageHandlerLoop() 
+{
+    while(running_) 
+    {
         ProcessQueuedMessages();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
-void ChatFrame::ProcessQueuedMessages() {
+void ChatFrame::ProcessQueuedMessages() 
+{
     std::lock_guard<std::mutex> lock(queue_mutex_);
-    while(!message_queue_.empty()) {
+    while(!message_queue_.empty()) 
+    {
         auto [sender, timestamp, text] = message_queue_.front();
         message_queue_.pop();
 
         wxString formatted_message;
-        if(sender == "System") {
+        if(sender == "System") 
+        {
             formatted_message = wxString::Format("[%s] %s\n", timestamp, text);
-        } else {
+        } 
+        else 
+        {
             formatted_message = wxString::Format("[%s] %s: %s\n", timestamp, sender, text);
         }
 
@@ -209,11 +231,13 @@ void ChatFrame::ProcessQueuedMessages() {
     }
 }
 
-void ChatFrame::OnSendMessage(wxCommandEvent&) {
+void ChatFrame::OnSendMessage(wxCommandEvent&) 
+{
     if(!chat_node_) return;
 
     wxString message = message_input_->GetValue();
-    if(!message.IsEmpty()) {
+    if(!message.IsEmpty()) 
+    {
         std::string msg_str = std::string(message.mb_str());
         chat_node_->send_message(msg_str);
         
@@ -227,11 +251,13 @@ void ChatFrame::OnSendMessage(wxCommandEvent&) {
     }
 }
 
-void ChatFrame::OnJoinGroup(wxCommandEvent&) {
+void ChatFrame::OnJoinGroup(wxCommandEvent&) 
+{
     if(!chat_node_) return;
 
     wxString group_name = group_input_->GetValue();
-    if(!group_name.IsEmpty()) {
+    if(!group_name.IsEmpty()) 
+    {
         std::string group_str = std::string(group_name.mb_str());
         chat_node_->join_group(group_str);
 
@@ -247,13 +273,16 @@ void ChatFrame::OnJoinGroup(wxCommandEvent&) {
     }
 }
 
-void ChatFrame::OnGroupSelected(wxCommandEvent&) {
+void ChatFrame::OnGroupSelected(wxCommandEvent&) 
+{
     if(!chat_node_) return;
 
     wxString group_name = group_choice_->GetStringSelection();
-    if(!group_name.IsEmpty()) {
+    if(!group_name.IsEmpty()) 
+    {
         std::string group_str = std::string(group_name.mb_str());
-        if(group_str != chat_node_->get_current_group()) {
+        if(group_str != chat_node_->get_current_group()) 
+        {
             chat_node_->join_group(group_str);
             message_display_->AppendText(wxString::Format(">>> Switched to group: %s\n", group_name));
             status_text_->SetLabel(wxString::Format("Group: %s", group_name));
@@ -261,11 +290,13 @@ void ChatFrame::OnGroupSelected(wxCommandEvent&) {
     }
 }
 
-void ChatFrame::OnChatMessage(wxThreadEvent&) {
+void ChatFrame::OnChatMessage(wxThreadEvent&) 
+{
     ProcessQueuedMessages();
 }
 
-void ChatFrame::OnClose(wxCloseEvent&) {
+void ChatFrame::OnClose(wxCloseEvent&) 
+{
     running_ = false;
     Destroy();
-}
+}                                     

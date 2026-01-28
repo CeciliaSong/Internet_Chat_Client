@@ -7,7 +7,8 @@
 #include <functional>
 #include <memory>
 
-class ChatNode : public rclcpp::Node {
+class ChatNode : public rclcpp::Node 
+{
 public:
     using MessageCallback = std::function<void(const std::string& sender, const std::string& timestamp, const std::string& text)>;
     
