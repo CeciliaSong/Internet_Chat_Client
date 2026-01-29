@@ -309,66 +309,84 @@ void ChatWindow::ProcessQueuedMessages() {
                 if(is_self) {
                     // 自己的消息靠右
                     message_display_->Newline();
-                    
-                    // 创建属性：右对齐、绿色气泡
-                    wxRichTextAttr attr;
-                    attr.SetAlignment(wxTEXT_ALIGNMENT_RIGHT);
-                    attr.SetTextColour(wxColour(255, 255, 255));
-                    attr.SetBackgroundColour(wxColour(137, 217, 97));
-                    
-                    message_display_->BeginStyle(attr);
+
+                    long line_start = message_display_->GetLastPosition();
+                    long bubble_start = message_display_->GetLastPosition();
                     message_display_->WriteText(" " + wxString(text) + " ");
-                    message_display_->EndStyle();
-                    
+                    long bubble_end = message_display_->GetLastPosition();
+
                     message_display_->WriteText(" ");
                     message_display_->WriteImage(avatar);
-                    
-                    // 时间戳
+                    message_display_->WriteText("  " + wxString(timestamp));
+                    long line_end = message_display_->GetLastPosition();
+
+                    wxRichTextAttr align_attr;
+                    align_attr.SetAlignment(wxTEXT_ALIGNMENT_RIGHT);
+                    message_display_->SetStyleEx(wxRichTextRange(line_start, line_end), align_attr,
+                                                 wxRICHTEXT_SETSTYLE_WITH_UNDO | wxRICHTEXT_SETSTYLE_OPTIMIZE);
+
+                    wxRichTextAttr bubble_attr;
+                    bubble_attr.SetTextColour(wxColour(255, 255, 255));
+                    bubble_attr.SetBackgroundColour(wxColour(137, 217, 97));
+                    message_display_->SetStyleEx(wxRichTextRange(bubble_start, bubble_end), bubble_attr,
+                                                 wxRICHTEXT_SETSTYLE_WITH_UNDO | wxRICHTEXT_SETSTYLE_OPTIMIZE);
+
                     wxRichTextAttr time_attr;
-                    time_attr.SetAlignment(wxTEXT_ALIGNMENT_RIGHT);
                     time_attr.SetTextColour(wxColour(150, 150, 150));
                     time_attr.SetFontSize(8);
-                    message_display_->BeginStyle(time_attr);
-                    message_display_->WriteText("  " + wxString(timestamp));
-                    message_display_->EndStyle();
-                    
+                    message_display_->SetStyleEx(wxRichTextRange(bubble_end, line_end), time_attr,
+                                                 wxRICHTEXT_SETSTYLE_WITH_UNDO | wxRICHTEXT_SETSTYLE_OPTIMIZE);
+
+                    message_display_->SetInsertionPointEnd();
                     message_display_->Newline();
                 } else {
                     // 别人的消息靠左
                     message_display_->Newline();
                     
                     // 发送者名字
+                    long name_start = message_display_->GetLastPosition();
+                    message_display_->WriteText(wxString(sender));
+                    long name_end = message_display_->GetLastPosition();
+                    
                     wxRichTextAttr name_attr;
                     name_attr.SetAlignment(wxTEXT_ALIGNMENT_LEFT);
                     name_attr.SetTextColour(wxColour(100, 100, 100));
                     name_attr.SetFontSize(8);
-                    message_display_->BeginStyle(name_attr);
-                    message_display_->WriteText(wxString(sender));
-                    message_display_->EndStyle();
+                    message_display_->SetStyleEx(wxRichTextRange(name_start, name_end), name_attr, wxRICHTEXT_SETSTYLE_WITH_UNDO | wxRICHTEXT_SETSTYLE_OPTIMIZE);
+                    
+                    message_display_->SetInsertionPointEnd();
                     message_display_->Newline();
                     
                     // 头像 + 消息气泡
-                    wxRichTextAttr msg_attr;
-                    msg_attr.SetAlignment(wxTEXT_ALIGNMENT_LEFT);
-                    msg_attr.SetTextColour(wxColour(0, 0, 0));
-                    msg_attr.SetBackgroundColour(wxColour(255, 255, 255));
-                    
+                    long line_start = message_display_->GetLastPosition();
                     message_display_->WriteImage(avatar);
                     message_display_->WriteText(" ");
-                    
-                    message_display_->BeginStyle(msg_attr);
+
+                    long bubble_start = message_display_->GetLastPosition();
                     message_display_->WriteText(" " + wxString(text) + " ");
-                    message_display_->EndStyle();
-                    
-                    // 时间戳
+                    long bubble_end = message_display_->GetLastPosition();
+
+                    message_display_->WriteText("  " + wxString(timestamp));
+                    long line_end = message_display_->GetLastPosition();
+
+                    wxRichTextAttr align_attr;
+                    align_attr.SetAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    message_display_->SetStyleEx(wxRichTextRange(line_start, line_end), align_attr,
+                                                 wxRICHTEXT_SETSTYLE_WITH_UNDO | wxRICHTEXT_SETSTYLE_OPTIMIZE);
+
+                    wxRichTextAttr bubble_attr;
+                    bubble_attr.SetTextColour(wxColour(0, 0, 0));
+                    bubble_attr.SetBackgroundColour(wxColour(255, 255, 255));
+                    message_display_->SetStyleEx(wxRichTextRange(bubble_start, bubble_end), bubble_attr,
+                                                 wxRICHTEXT_SETSTYLE_WITH_UNDO | wxRICHTEXT_SETSTYLE_OPTIMIZE);
+
                     wxRichTextAttr time_attr;
-                    time_attr.SetAlignment(wxTEXT_ALIGNMENT_LEFT);
                     time_attr.SetTextColour(wxColour(150, 150, 150));
                     time_attr.SetFontSize(8);
-                    message_display_->BeginStyle(time_attr);
-                    message_display_->WriteText("  " + wxString(timestamp));
-                    message_display_->EndStyle();
+                    message_display_->SetStyleEx(wxRichTextRange(bubble_end, line_end), time_attr,
+                                                 wxRICHTEXT_SETSTYLE_WITH_UNDO | wxRICHTEXT_SETSTYLE_OPTIMIZE);
                     
+                    message_display_->SetInsertionPointEnd();
                     message_display_->Newline();
                 }
             }
