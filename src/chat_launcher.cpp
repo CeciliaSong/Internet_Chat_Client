@@ -317,7 +317,11 @@ void ChatWindow::ProcessQueuedMessages() {
                     // 自己的消息靠右
                     message_display_->BeginAlignment(wxTEXT_ALIGNMENT_RIGHT);
                     
-                    // 消息气泡（绿色）- 先显示气泡内容
+                    // 头像
+                    message_display_->WriteImage(avatar);
+                    message_display_->WriteText(" ");
+                    
+                    // 消息气泡（绿色）
                     wxRichTextAttr attr;
                     attr.SetTextColour(wxColour(255, 255, 255));
                     attr.SetBackgroundColour(wxColour(137, 217, 97));
@@ -327,6 +331,7 @@ void ChatWindow::ProcessQueuedMessages() {
                     message_display_->EndStyle();
                     
                     // 时间戳（小字灰色）
+                    message_display_->WriteText(" ");
                     message_display_->BeginTextColour(wxColour(150, 150, 150));
                     message_display_->BeginFontSize(8);
                     message_display_->WriteText(timestamp);
