@@ -300,72 +300,76 @@ void ChatWindow::ProcessQueuedMessages() {
                 // 生成发送者头像
                 wxBitmap avatar = GenerateAvatar(wxString(sender), 32);
                 
+                // 获取当前用户名
+                std::string current_username = std::string(username_.mb_str());
+                
                 // 判断是否为自己的消息
-                bool is_self = (sender == std::string(username_.mb_str()));
+                bool is_self = (sender == current_username);
                 
                 if(is_self) {
                     // 自己的消息靠右
-                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_RIGHT);
+                    message_display_->Newline();
                     
-                    // 头像
-                    message_display_->WriteImage(avatar);
-                    message_display_->WriteText(" ");
-                    
-                    // 消息气泡（绿色）
+                    // 创建属性：右对齐、绿色气泡
                     wxRichTextAttr attr;
+                    attr.SetAlignment(wxTEXT_ALIGNMENT_RIGHT);
                     attr.SetTextColour(wxColour(255, 255, 255));
                     attr.SetBackgroundColour(wxColour(137, 217, 97));
-                    attr.SetAlignment(wxTEXT_ALIGNMENT_RIGHT);
+                    
                     message_display_->BeginStyle(attr);
                     message_display_->WriteText(" " + wxString(text) + " ");
                     message_display_->EndStyle();
                     
-                    // 时间戳（小字灰色）
                     message_display_->WriteText(" ");
-                    message_display_->BeginTextColour(wxColour(150, 150, 150));
-                    message_display_->BeginFontSize(8);
-                    message_display_->WriteText(timestamp);
-                    message_display_->EndFontSize();
-                    message_display_->EndTextColour();
+                    message_display_->WriteImage(avatar);
                     
-                    message_display_->EndAlignment();
+                    // 时间戳
+                    wxRichTextAttr time_attr;
+                    time_attr.SetAlignment(wxTEXT_ALIGNMENT_RIGHT);
+                    time_attr.SetTextColour(wxColour(150, 150, 150));
+                    time_attr.SetFontSize(8);
+                    message_display_->BeginStyle(time_attr);
+                    message_display_->WriteText("  " + wxString::FromUTF8(timestamp));
+                    message_display_->EndStyle();
+                    
+                    message_display_->Newline();
                 } else {
                     // 别人的消息靠左
-                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    message_display_->Newline();
                     
-                    // 发送者名字（灰色小字，单独一行）
-                    message_display_->BeginTextColour(wxColour(100, 100, 100));
-                    message_display_->BeginFontSize(8);
+                    // 发送者名字
+                    wxRichTextAttr name_attr;
+                    name_attr.SetAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    name_attr.SetTextColour(wxColour(100, 100, 100));
+                    name_attr.SetFontSize(8);
+                    message_display_->BeginStyle(name_attr);
                     message_display_->WriteText(wxString(sender));
-                    message_display_->EndFontSize();
-                    message_display_->EndTextColour();
-                    message_display_->EndAlignment();
+                    message_display_->EndStyle();
+                    message_display_->Newline();
                     
-                    // 消息内容行
-                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    // 头像 + 消息气泡
+                    wxRichTextAttr msg_attr;
+                    msg_attr.SetAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    msg_attr.SetTextColour(wxColour(0, 0, 0));
+                    msg_attr.SetBackgroundColour(wxColour(255, 255, 255));
                     
-                    // 头像
                     message_display_->WriteImage(avatar);
                     message_display_->WriteText(" ");
                     
-                    // 消息气泡（白色）
-                    wxRichTextAttr attr;
-                    attr.SetTextColour(wxColour(0, 0, 0));
-                    attr.SetBackgroundColour(wxColour(255, 255, 255));
-                    attr.SetLeftIndent(10);
-                    attr.SetRightIndent(200);
-                    message_display_->BeginStyle(attr);
+                    message_display_->BeginStyle(msg_attr);
                     message_display_->WriteText(" " + wxString(text) + " ");
                     message_display_->EndStyle();
                     
                     // 时间戳
-                    message_display_->WriteText(" ");
-                    message_display_->BeginTextColour(wxColour(150, 150, 150));
-                    message_display_->BeginFontSize(8);
-                    message_display_->WriteText(timestamp);
-                    message_display_->EndFontSize();
-                    message_display_->EndTextColour();
-                    message_display_->EndAlignment();
+                    wxRichTextAttr time_attr;
+                    time_attr.SetAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    time_attr.SetTextColour(wxColour(150, 150, 150));
+                    time_attr.SetFontSize(8);
+                    message_display_->BeginStyle(time_attr);
+                    message_display_->WriteText("  " + wxString::FromUTF8(timestamp));
+                    message_display_->EndStyle();
+                    
+                    message_display_->Newline();
                 }
             }
             
