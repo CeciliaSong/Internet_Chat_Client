@@ -366,6 +366,7 @@ void ChatWindow::ProcessQueuedMessages() {
                     message_display_->EndFontSize();
                     message_display_->EndTextColour();
                     message_display_->EndAlignment();
+                }
             }
             
             message_display_->EndSuppressUndo();
