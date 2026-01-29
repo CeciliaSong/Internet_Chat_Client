@@ -303,20 +303,6 @@ void ChatWindow::ProcessQueuedMessages() {
                 // 判断是否为自己的消息
                 bool is_self = (sender == std::string(username_.mb_str()));
                 
-                // 发送者名字（在消息上方）
-                if(!is_self) {
-                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_LEFT);
-                    message_display_->BeginLeftIndent(45);
-                    message_display_->BeginTextColour(wxColour(100, 100, 100));
-                    message_display_->BeginFontSize(8);
-                    message_display_->WriteText(wxString(sender));
-                    message_display_->EndFontSize();
-                    message_display_->EndTextColour();
-                    message_display_->EndLeftIndent();
-                    message_display_->EndAlignment();
-                    message_display_->Newline();
-                }
-                
                 if(is_self) {
                     // 自己的消息靠右
                     message_display_->BeginAlignment(wxTEXT_ALIGNMENT_RIGHT);
@@ -347,6 +333,17 @@ void ChatWindow::ProcessQueuedMessages() {
                     // 别人的消息靠左
                     message_display_->BeginAlignment(wxTEXT_ALIGNMENT_LEFT);
                     
+                    // 发送者名字（灰色小字，单独一行）
+                    message_display_->BeginTextColour(wxColour(100, 100, 100));
+                    message_display_->BeginFontSize(8);
+                    message_display_->WriteText(wxString(sender));
+                    message_display_->EndFontSize();
+                    message_display_->EndTextColour();
+                    message_display_->EndAlignment();
+                    
+                    // 消息内容行
+                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    
                     // 头像
                     message_display_->WriteImage(avatar);
                     message_display_->WriteText(" ");
@@ -369,7 +366,6 @@ void ChatWindow::ProcessQueuedMessages() {
                     message_display_->EndFontSize();
                     message_display_->EndTextColour();
                     message_display_->EndAlignment();
-                }
             }
             
             message_display_->EndSuppressUndo();
