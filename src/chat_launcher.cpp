@@ -1,6 +1,7 @@
 #include <wx/wx.h>
 #include <wx/treectrl.h>
 #include <wx/dcbuffer.h>
+#include <wx/imaglist.h>
 #include <wx/richtext/richtextctrl.h>
 #include <rclcpp/rclcpp.hpp>
 #include "internet_chat_client/chat_node.hpp"
@@ -471,8 +472,12 @@ void LauncherFrame::InitializeDefaultTree() {
     tree_ctrl_->SetItemData(tech_group, new TreeItemData("", "tech_team", true));
     
     // 为tech_team用户添加头像
-    wxArrayString users = {"Alice", "Bob", "Charlie"};
-    for(const auto& user : users) {
+    wxArrayString users;
+    users.Add("Alice");
+    users.Add("Bob");
+    users.Add("Charlie");
+    for(size_t i = 0; i < users.Count(); i++) {
+        wxString user = users[i];
         int img_idx = GetOrCreateAvatarIndex(user);
         tree_ctrl_->AppendItem(tech_group, user, img_idx, img_idx,
                               new TreeItemData(std::string(user.mb_str()), "tech_team", false));
@@ -482,8 +487,11 @@ void LauncherFrame::InitializeDefaultTree() {
     wxTreeItemId general_group = tree_ctrl_->AppendItem(root, "general");
     tree_ctrl_->SetItemData(general_group, new TreeItemData("", "general", true));
     
-    wxArrayString general_users = {"David", "Cecilia"};
-    for(const auto& user : general_users) {
+    wxArrayString general_users;
+    general_users.Add("David");
+    general_users.Add("Cecilia");
+    for(size_t i = 0; i < general_users.Count(); i++) {
+        wxString user = general_users[i];
         int img_idx = GetOrCreateAvatarIndex(user);
         tree_ctrl_->AppendItem(general_group, user, img_idx, img_idx,
                               new TreeItemData(std::string(user.mb_str()), "general", false));
@@ -493,8 +501,11 @@ void LauncherFrame::InitializeDefaultTree() {
     wxTreeItemId alpha_group = tree_ctrl_->AppendItem(root, "project_alpha");
     tree_ctrl_->SetItemData(alpha_group, new TreeItemData("", "project_alpha", true));
     
-    wxArrayString alpha_users = {"Frank", "Grace"};
-    for(const auto& user : alpha_users) {
+    wxArrayString alpha_users;
+    alpha_users.Add("Frank");
+    alpha_users.Add("Grace");
+    for(size_t i = 0; i < alpha_users.Count(); i++) {
+        wxString user = alpha_users[i];
         int img_idx = GetOrCreateAvatarIndex(user);
         tree_ctrl_->AppendItem(alpha_group, user, img_idx, img_idx,
                               new TreeItemData(std::string(user.mb_str()), "project_alpha", false));
@@ -514,6 +525,7 @@ int LauncherFrame::GetOrCreateAvatarIndex(const wxString& username) {
     int index = image_list_->Add(avatar);
     avatar_index_map_[username] = index;
     return index;
+}
 
 void LauncherFrame::OnTreeItemActivated(wxTreeEvent& event) {
     wxTreeItemId item = event.GetItem();
