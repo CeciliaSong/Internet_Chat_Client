@@ -1,12 +1,63 @@
 #include <wx/wx.h>
 #include <wx/treectrl.h>
+#include <wx/dcbuffer.h>
+#include <wx/richtext/richtextctrl.h>
+#include <rclcpp/rclcpp.hpp>
 #include "internet_chat_client/chat_node.hpp"
 #include <thread>
 #include <queue>
 #include <mutex>
 #include <memory>
 #include <map>
+#include <set>
 #include <vector>
+#include <string>
+#include <tuple>
+#include <chrono>
+
+// 头像生成工具函数
+wxBitmap GenerateAvatar(const wxString& username, int size = 48) {
+    wxBitmap bitmap(size, size);
+    wxMemoryDC dc(bitmap);
+    
+    // 根据用户名生成颜色
+    unsigned int hash = 0;
+    for(size_t i = 0; i < username.length(); i++) {
+        hash = hash * 31 + username[i].GetValue();
+    }
+    
+    int r = (hash & 0xFF0000) >> 16;
+    int g = (hash & 0x00FF00) >> 8;
+    int b = (hash & 0x0000FF);
+    
+    // 确保颜色不会太暗
+    r = std::max(r, 100);
+    g = std::max(g, 100);
+    b = std::max(b, 100);
+    
+    // 绘制圆形背景
+    dc.SetBackground(*wxWHITE_BRUSH);
+    dc.Clear();
+    
+    wxBrush brush(wxColour(r, g, b));
+    dc.SetBrush(brush);
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.DrawCircle(size/2, size/2, size/2);
+    
+    // 绘制首字母
+    wxString initial = username.IsEmpty() ? "?" : username.Mid(0, 1).Upper();
+    wxFont font(size/2, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    dc.SetFont(font);
+    dc.SetTextForeground(*wxWHITE);
+    
+    wxSize textSize = dc.GetTextExtent(initial);
+    int x = (size - textSize.GetWidth()) / 2;
+    int y = (size - textSize.GetHeight()) / 2;
+    dc.DrawText(initial, x, y);
+    
+    dc.SelectObject(wxNullBitmap);
+    return bitmap;
+}
 
 // 前向声明
 class ChatWindow;
@@ -34,7 +85,8 @@ public:
     ~ChatWindow();
 
 private:
-    wxTextCtrl* message_display_;
+    wxStaticBitmap* avatar_bitmap_;
+    wxRichTextCtrl* message_display_;
     wxTextCtrl* message_input_;
     wxButton* send_button_;
     wxStaticText* status_text_;
@@ -70,20 +122,25 @@ private:
     wxButton* add_group_button_;
     wxButton* add_user_button_;
     wxButton* remove_button_;
+    wxButton* private_chat_button_;
     std::vector<ChatWindow*> chat_windows_;
+    std::map<wxString, std::vector<wxString>> all_users_;
 
     void OnTreeItemActivated(wxTreeEvent& event);
     void OnAddGroup(wxCommandEvent& event);
     void OnAddUser(wxCommandEvent& event);
     void OnRemove(wxCommandEvent& event);
+    void OnPrivateChat(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
     void InitializeDefaultTree();
+    void CollectAllUsers(wxTreeItemId item);
 
     enum {
         ID_TREE_CTRL = 3001,
         ID_ADD_GROUP = 3002,
         ID_ADD_USER = 3003,
-        ID_REMOVE = 3004
+        ID_REMOVE = 3004,
+        ID_PRIVATE_CHAT = 3005
     };
 
     wxDECLARE_EVENT_TABLE();
@@ -108,19 +165,35 @@ ChatWindow::ChatWindow(const wxString& username, const wxString& group)
     wxPanel* panel = new wxPanel(this);
     wxBoxSizer* main_sizer = new wxBoxSizer(wxVERTICAL);
 
-    // 状态栏
-    status_text_ = new wxStaticText(panel, wxID_ANY, 
-                                    wxString::Format("User: %s | Group: %s", username, group));
-    wxFont status_font(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    // 头像和状态栏区域
+    wxBoxSizer* header_sizer = new wxBoxSizer(wxHORIZONTAL);
+    
+    // 生成并显示头像
+    wxBitmap avatar = GenerateAvatar(username, 48);
+    avatar_bitmap_ = new wxStaticBitmap(panel, wxID_ANY, avatar);
+    header_sizer->Add(avatar_bitmap_, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+    
+    // 状态文字
+    wxBoxSizer* text_sizer = new wxBoxSizer(wxVERTICAL);
+    wxStaticText* username_text = new wxStaticText(panel, wxID_ANY, username);
+    wxFont username_font(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    username_text->SetFont(username_font);
+    text_sizer->Add(username_text, 0, wxBOTTOM, 2);
+    
+    status_text_ = new wxStaticText(panel, wxID_ANY, wxString::Format("Group: %s", group));
+    wxFont status_font(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     status_text_->SetFont(status_font);
-    main_sizer->Add(status_text_, 0, wxALL, 10);
+    status_text_->SetForegroundColour(wxColour(100, 100, 100));
+    text_sizer->Add(status_text_, 0);
+    
+    header_sizer->Add(text_sizer, 1, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+    main_sizer->Add(header_sizer, 0, wxEXPAND | wxALL, 10);
 
     // 消息显示区
     main_sizer->Add(new wxStaticText(panel, wxID_ANY, "Messages:"), 0, wxLEFT | wxTOP, 10);
-    message_display_ = new wxTextCtrl(panel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize,
-                                      wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
-    wxFont display_font(10, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-    message_display_->SetFont(display_font);
+    message_display_ = new wxRichTextCtrl(panel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize,
+                                          wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
+    message_display_->SetBackgroundColour(wxColour(245, 245, 245));
     main_sizer->Add(message_display_, 1, wxEXPAND | wxALL, 10);
 
     // 输入区
@@ -174,7 +247,13 @@ ChatWindow::ChatWindow(const wxString& username, const wxString& group)
         MessageHandlerLoop();
     });
 
-    message_display_->AppendText(wxString::Format(">>> Connected as %s in group %s\n", username, group));
+    message_display_->BeginSuppressUndo();
+    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_CENTRE);
+    message_display_->BeginTextColour(wxColour(128, 128, 128));
+    message_display_->WriteText(wxString::Format("Connected as %s in group %s", username, group));
+    message_display_->EndTextColour();
+    message_display_->EndAlignment();
+    message_display_->EndSuppressUndo();
 }
 
 ChatWindow::~ChatWindow() {
@@ -200,15 +279,95 @@ void ChatWindow::ProcessQueuedMessages() {
         auto [sender, timestamp, text] = message_queue_.front();
         message_queue_.pop();
 
-        wxString formatted_message;
-        if(sender == "System") {
-            formatted_message = wxString::Format("[%s] %s\n", timestamp, text);
-        } else {
-            formatted_message = wxString::Format("[%s] %s: %s\n", timestamp, sender, text);
-        }
-
-        CallAfter([this, formatted_message]() {
-            message_display_->AppendText(formatted_message);
+        CallAfter([this, sender, text, timestamp]() {
+            message_display_->BeginSuppressUndo();
+            message_display_->Newline();
+            
+            if(sender == "System") {
+                // 系统消息居中显示
+                message_display_->BeginAlignment(wxTEXT_ALIGNMENT_CENTRE);
+                message_display_->BeginTextColour(wxColour(128, 128, 128));
+                message_display_->BeginFontSize(9);
+                message_display_->WriteText(wxString::Format("%s %s", timestamp, text));
+                message_display_->EndFontSize();
+                message_display_->EndTextColour();
+                message_display_->EndAlignment();
+            } else {
+                // 生成发送者头像
+                wxBitmap avatar = GenerateAvatar(wxString(sender), 32);
+                
+                // 判断是否为自己的消息
+                bool is_self = (sender == std::string(username_.mb_str()));
+                
+                // 发送者名字（在消息上方）
+                if(!is_self) {
+                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    message_display_->BeginLeftIndent(45);
+                    message_display_->BeginTextColour(wxColour(100, 100, 100));
+                    message_display_->BeginFontSize(8);
+                    message_display_->WriteText(wxString(sender));
+                    message_display_->EndFontSize();
+                    message_display_->EndTextColour();
+                    message_display_->EndLeftIndent();
+                    message_display_->EndAlignment();
+                    message_display_->Newline();
+                }
+                
+                if(is_self) {
+                    // 自己的消息靠右
+                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_RIGHT);
+                    
+                    // 时间戳
+                    message_display_->BeginTextColour(wxColour(150, 150, 150));
+                    message_display_->BeginFontSize(8);
+                    message_display_->WriteText(timestamp + " ");
+                    message_display_->EndFontSize();
+                    message_display_->EndTextColour();
+                    
+                    // 消息气泡（绿色）
+                    wxRichTextAttr attr;
+                    attr.SetTextColour(wxColour(255, 255, 255));
+                    attr.SetBackgroundColour(wxColour(137, 217, 97));
+                    attr.SetLeftIndent(200);
+                    attr.SetRightIndent(10);
+                    message_display_->BeginStyle(attr);
+                    message_display_->WriteText(" " + wxString(text) + " ");
+                    message_display_->EndStyle();
+                    
+                    message_display_->WriteText(" ");
+                    message_display_->WriteImage(avatar);
+                    message_display_->EndAlignment();
+                } else {
+                    // 别人的消息靠左
+                    message_display_->BeginAlignment(wxTEXT_ALIGNMENT_LEFT);
+                    
+                    // 头像
+                    message_display_->WriteImage(avatar);
+                    message_display_->WriteText(" ");
+                    
+                    // 消息气泡（白色）
+                    wxRichTextAttr attr;
+                    attr.SetTextColour(wxColour(0, 0, 0));
+                    attr.SetBackgroundColour(wxColour(255, 255, 255));
+                    attr.SetLeftIndent(10);
+                    attr.SetRightIndent(200);
+                    message_display_->BeginStyle(attr);
+                    message_display_->WriteText(" " + wxString(text) + " ");
+                    message_display_->EndStyle();
+                    
+                    // 时间戳
+                    message_display_->WriteText(" ");
+                    message_display_->BeginTextColour(wxColour(150, 150, 150));
+                    message_display_->BeginFontSize(8);
+                    message_display_->WriteText(timestamp);
+                    message_display_->EndFontSize();
+                    message_display_->EndTextColour();
+                    message_display_->EndAlignment();
+                }
+            }
+            
+            message_display_->EndSuppressUndo();
+            message_display_->ShowPosition(message_display_->GetLastPosition());
         });
     }
 }
@@ -220,12 +379,18 @@ void ChatWindow::OnSendMessage(wxCommandEvent&) {
     if(!message.IsEmpty()) {
         std::string msg_str = std::string(message.mb_str());
         chat_node_->send_message(msg_str);
-
-        // 显示自己的消息
-        std::string timestamp = "[" + std::string(wxDateTime::Now().FormatTime().mb_str()) + "]";
-        wxString display = wxString::Format("%s %s: %s\n", timestamp, username_, message);
-        message_display_->AppendText(display);
-
+        
+        // 立即显示自己发送的消息
+        std::string timestamp = std::string(wxDateTime::Now().FormatTime().mb_str());
+        std::string sender = std::string(username_.mb_str());
+        
+        // 添加到消息队列
+        {
+            std::lock_guard<std::mutex> lock(queue_mutex_);
+            message_queue_.push({sender, timestamp, msg_str});
+        }
+        ProcessQueuedMessages();
+        
         message_input_->Clear();
         message_input_->SetFocus();
     }
@@ -265,9 +430,11 @@ LauncherFrame::LauncherFrame(const wxString& title)
     add_group_button_ = new wxButton(panel, ID_ADD_GROUP, "Add Group");
     add_user_button_ = new wxButton(panel, ID_ADD_USER, "Add User");
     remove_button_ = new wxButton(panel, ID_REMOVE, "Remove");
+    private_chat_button_ = new wxButton(panel, ID_PRIVATE_CHAT, "Private Chat");
     button_sizer->Add(add_group_button_, 1, wxEXPAND | wxRIGHT, 5);
     button_sizer->Add(add_user_button_, 1, wxEXPAND | wxRIGHT, 5);
-    button_sizer->Add(remove_button_, 1, wxEXPAND);
+    button_sizer->Add(remove_button_, 1, wxEXPAND | wxRIGHT, 5);
+    button_sizer->Add(private_chat_button_, 1, wxEXPAND);
     main_sizer->Add(button_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
     panel->SetSizer(main_sizer);
@@ -276,6 +443,7 @@ LauncherFrame::LauncherFrame(const wxString& title)
     Bind(wxEVT_BUTTON, &LauncherFrame::OnAddGroup, this, ID_ADD_GROUP);
     Bind(wxEVT_BUTTON, &LauncherFrame::OnAddUser, this, ID_ADD_USER);
     Bind(wxEVT_BUTTON, &LauncherFrame::OnRemove, this, ID_REMOVE);
+    Bind(wxEVT_BUTTON, &LauncherFrame::OnPrivateChat, this, ID_PRIVATE_CHAT);
     Bind(wxEVT_CLOSE_WINDOW, &LauncherFrame::OnClose, this);
 
     // 初始化默认树结构
@@ -303,8 +471,8 @@ void LauncherFrame::InitializeDefaultTree() {
     tree_ctrl_->SetItemData(general_group, new TreeItemData("", "general", true));
     tree_ctrl_->AppendItem(general_group, "David", -1, -1,
                           new TreeItemData("David", "general", false));
-    tree_ctrl_->AppendItem(general_group, "Eve", -1, -1,
-                          new TreeItemData("Eve", "general", false));
+    tree_ctrl_->AppendItem(general_group, "Cecilia", -1, -1,
+                          new TreeItemData("Cecilia", "general", false));
 
     // 默认群组3: Project Alpha
     wxTreeItemId alpha_group = tree_ctrl_->AppendItem(root, "project_alpha");
@@ -392,6 +560,120 @@ void LauncherFrame::OnRemove(wxCommandEvent&) {
     SetStatusText("Item removed.");
 }
 
+void LauncherFrame::CollectAllUsers(wxTreeItemId item) {
+    wxTreeItemIdValue cookie;
+    wxTreeItemId child = tree_ctrl_->GetFirstChild(item, cookie);
+    
+    while(child.IsOk()) {
+        TreeItemData* data = dynamic_cast<TreeItemData*>(tree_ctrl_->GetItemData(child));
+        if(data) {
+            if(data->IsGroup()) {
+                wxString group_name = data->GetGroup();
+                CollectAllUsers(child);
+            } else {
+                wxString group_name = data->GetGroup();
+                wxString username = data->GetUsername();
+                all_users_[group_name].push_back(username);
+            }
+        }
+        child = tree_ctrl_->GetNextChild(item, cookie);
+    }
+}
+
+void LauncherFrame::OnPrivateChat(wxCommandEvent&) {
+    // 收集所有用户
+    all_users_.clear();
+    wxTreeItemId root = tree_ctrl_->GetRootItem();
+    CollectAllUsers(root);
+    
+    // 展平所有用户列表（去重）
+    std::set<wxString> unique_users_set;
+    for(const auto& pair : all_users_) {
+        for(const auto& user : pair.second) {
+            unique_users_set.insert(user);
+        }
+    }
+    
+    wxArrayString user_list;
+    for(const auto& user : unique_users_set) {
+        user_list.Add(user);
+    }
+    
+    if(user_list.GetCount() < 2) {
+        wxMessageBox("Need at least 2 users to start a private chat!", "Error", wxOK | wxICON_ERROR);
+        return;
+    }
+    
+    // 选择第一个用户
+    wxSingleChoiceDialog dlg1(this, "Select first user:", "Private Chat - User 1", user_list);
+    if(dlg1.ShowModal() != wxID_OK) {
+        return;
+    }
+    wxString user1 = dlg1.GetStringSelection();
+    
+    // 选择第二个用户
+    wxArrayString remaining_users;
+    for(const auto& user : user_list) {
+        if(user != user1) {
+            remaining_users.Add(user);
+        }
+    }
+    
+    wxSingleChoiceDialog dlg2(this, "Select second user:", "Private Chat - User 2", remaining_users);
+    if(dlg2.ShowModal() != wxID_OK) {
+        return;
+    }
+    wxString user2 = dlg2.GetStringSelection();
+    
+    // 创建私聊group名（格式：private_user1_user2，确保一致性）
+    wxString group_name;
+    if(user1 < user2) {
+        group_name = wxString::Format("private_%s_%s", user1, user2);
+    } else {
+        group_name = wxString::Format("private_%s_%s", user2, user1);
+    }
+    
+    // 检查是否已存在该私聊group
+    wxTreeItemId root_item = tree_ctrl_->GetRootItem();
+    wxTreeItemIdValue cookie;
+    wxTreeItemId child = tree_ctrl_->GetFirstChild(root_item, cookie);
+    bool group_exists = false;
+    
+    while(child.IsOk()) {
+        if(tree_ctrl_->GetItemText(child) == group_name) {
+            group_exists = true;
+            break;
+        }
+        child = tree_ctrl_->GetNextChild(root_item, cookie);
+    }
+    
+    // 如果不存在，创建新的private group
+    if(!group_exists) {
+        wxTreeItemId private_group = tree_ctrl_->AppendItem(root_item, group_name);
+        tree_ctrl_->SetItemData(private_group, new TreeItemData("", group_name, true));
+        
+        // 添加两个用户到private group
+        tree_ctrl_->AppendItem(private_group, user1, -1, -1,
+                              new TreeItemData(user1, group_name, false));
+        tree_ctrl_->AppendItem(private_group, user2, -1, -1,
+                              new TreeItemData(user2, group_name, false));
+        
+        tree_ctrl_->Expand(root_item);
+        SetStatusText(wxString::Format("Created private chat: %s <-> %s", user1, user2));
+    }
+    
+    // 打开两个窗口 - 一个给user1，一个给user2
+    ChatWindow* chat_window1 = new ChatWindow(user1, group_name);
+    chat_windows_.push_back(chat_window1);
+    chat_window1->Show(true);
+    
+    ChatWindow* chat_window2 = new ChatWindow(user2, group_name);
+    chat_windows_.push_back(chat_window2);
+    chat_window2->Show(true);
+    
+    SetStatusText(wxString::Format("Opened private chat: %s <-> %s in group %s", user1, user2, group_name));
+}
+
 void LauncherFrame::OnClose(wxCloseEvent& event) {
     // 关闭所有聊天窗口
     for(auto* window : chat_windows_) {
@@ -406,6 +688,9 @@ void LauncherFrame::OnClose(wxCloseEvent& event) {
 // ============ LauncherApp 实现 ============
 
 bool LauncherApp::OnInit() {
+    // 初始化图像处理器
+    wxInitAllImageHandlers();
+    
     LauncherFrame* frame = new LauncherFrame("ROS2 Chat Launcher");
     frame->Show(true);
     return true;

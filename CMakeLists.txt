@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(internet_chat_client)
 
+# Export compile commands for IntelliSense
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -67,7 +70,7 @@ if(wxWidgets_FOUND)
   
   # Launcher executable
   add_executable(chat_launcher src/chat_launcher.cpp)
-  target_link_libraries(chat_launcher chat_node_lib ${wxWidgets_LIBRARIES})
+  target_link_libraries(chat_launcher chat_node_lib ${wxWidgets_LIBRARIES} wx_gtk3u_richtext-3.0)
   ament_target_dependencies(chat_launcher rclcpp std_msgs)
   target_include_directories(chat_launcher PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
