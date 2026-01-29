@@ -119,6 +119,8 @@ public:
 
 private:
     wxTreeCtrl* tree_ctrl_;
+    wxImageList* image_list_;
+    std::map<wxString, int> avatar_index_map_;
     wxButton* add_group_button_;
     wxButton* add_user_button_;
     wxButton* remove_button_;
@@ -134,6 +136,7 @@ private:
     void OnClose(wxCloseEvent& event);
     void InitializeDefaultTree();
     void CollectAllUsers(wxTreeItemId item);
+    int GetOrCreateAvatarIndex(const wxString& username);
 
     enum {
         ID_TREE_CTRL = 3001,
@@ -425,6 +428,11 @@ LauncherFrame::LauncherFrame(const wxString& title)
     // 树形控件
     tree_ctrl_ = new wxTreeCtrl(panel, ID_TREE_CTRL, wxDefaultPosition, wxDefaultSize,
                                 wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT | wxTR_SINGLE);
+    
+    // 创建头像image list (32x32)
+    image_list_ = new wxImageList(32, 32, true);
+    tree_ctrl_->SetImageList(image_list_);
+    
     main_sizer->Add(tree_ctrl_, 1, wxEXPAND | wxALL, 10);
 
     // 按钮区
@@ -461,31 +469,51 @@ void LauncherFrame::InitializeDefaultTree() {
     // 默认群组1: Tech Team
     wxTreeItemId tech_group = tree_ctrl_->AppendItem(root, "tech_team");
     tree_ctrl_->SetItemData(tech_group, new TreeItemData("", "tech_team", true));
-    tree_ctrl_->AppendItem(tech_group, "Alice", -1, -1,
-                          new TreeItemData("Alice", "tech_team", false));
-    tree_ctrl_->AppendItem(tech_group, "Bob", -1, -1,
-                          new TreeItemData("Bob", "tech_team", false));
-    tree_ctrl_->AppendItem(tech_group, "Charlie", -1, -1,
-                          new TreeItemData("Charlie", "tech_team", false));
+    
+    // 为tech_team用户添加头像
+    wxArrayString users = {"Alice", "Bob", "Charlie"};
+    for(const auto& user : users) {
+        int img_idx = GetOrCreateAvatarIndex(user);
+        tree_ctrl_->AppendItem(tech_group, user, img_idx, img_idx,
+                              new TreeItemData(std::string(user.mb_str()), "tech_team", false));
+    }
 
     // 默认群组2: General
     wxTreeItemId general_group = tree_ctrl_->AppendItem(root, "general");
     tree_ctrl_->SetItemData(general_group, new TreeItemData("", "general", true));
-    tree_ctrl_->AppendItem(general_group, "David", -1, -1,
-                          new TreeItemData("David", "general", false));
-    tree_ctrl_->AppendItem(general_group, "Cecilia", -1, -1,
-                          new TreeItemData("Cecilia", "general", false));
+    
+    wxArrayString general_users = {"David", "Cecilia"};
+    for(const auto& user : general_users) {
+        int img_idx = GetOrCreateAvatarIndex(user);
+        tree_ctrl_->AppendItem(general_group, user, img_idx, img_idx,
+                              new TreeItemData(std::string(user.mb_str()), "general", false));
+    }
 
     // 默认群组3: Project Alpha
     wxTreeItemId alpha_group = tree_ctrl_->AppendItem(root, "project_alpha");
     tree_ctrl_->SetItemData(alpha_group, new TreeItemData("", "project_alpha", true));
-    tree_ctrl_->AppendItem(alpha_group, "Frank", -1, -1,
-                          new TreeItemData("Frank", "project_alpha", false));
-    tree_ctrl_->AppendItem(alpha_group, "Grace", -1, -1,
-                          new TreeItemData("Grace", "project_alpha", false));
+    
+    wxArrayString alpha_users = {"Frank", "Grace"};
+    for(const auto& user : alpha_users) {
+        int img_idx = GetOrCreateAvatarIndex(user);
+        tree_ctrl_->AppendItem(alpha_group, user, img_idx, img_idx,
+                              new TreeItemData(std::string(user.mb_str()), "project_alpha", false));
+    }
 
     tree_ctrl_->Expand(root);
 }
+
+int LauncherFrame::GetOrCreateAvatarIndex(const wxString& username) {
+    // 检查是否已经创建过头像
+    if(avatar_index_map_.find(username) != avatar_index_map_.end()) {
+        return avatar_index_map_[username];
+    }
+    
+    // 生成头像并添加到image list
+    wxBitmap avatar = GenerateAvatar(username, 32);
+    int index = image_list_->Add(avatar);
+    avatar_index_map_[username] = index;
+    return index;
 
 void LauncherFrame::OnTreeItemActivated(wxTreeEvent& event) {
     wxTreeItemId item = event.GetItem();
@@ -543,7 +571,8 @@ void LauncherFrame::OnAddUser(wxCommandEvent&) {
         wxString username = dialog.GetValue();
         if(!username.IsEmpty()) {
             wxString group = data->GetGroup();
-            tree_ctrl_->AppendItem(selected, username, -1, -1,
+            int img_idx = GetOrCreateAvatarIndex(username);
+            tree_ctrl_->AppendItem(selected, username, img_idx, img_idx,
                                   new TreeItemData(username, group, false));
             tree_ctrl_->Expand(selected);
             SetStatusText(wxString::Format("Added user %s to group %s", username, group));
