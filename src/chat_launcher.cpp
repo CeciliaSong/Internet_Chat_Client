@@ -534,9 +534,13 @@ void LauncherFrame::OnTreeItemActivated(wxTreeEvent& event) {
     TreeItemData* data = dynamic_cast<TreeItemData*>(tree_ctrl_->GetItemData(item));
     if(!data) return;
 
-    // 只处理用户节点，不处理群组节点
+    // 如果是群组，切换展开/收起状态
     if(data->IsGroup()) {
-        SetStatusText("Please double-click a user, not a group.");
+        if(tree_ctrl_->IsExpanded(item)) {
+            tree_ctrl_->Collapse(item);
+        } else {
+            tree_ctrl_->Expand(item);
+        }
         return;
     }
 
