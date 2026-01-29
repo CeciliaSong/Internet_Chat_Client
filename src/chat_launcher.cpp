@@ -329,7 +329,7 @@ void ChatWindow::ProcessQueuedMessages() {
                     time_attr.SetTextColour(wxColour(150, 150, 150));
                     time_attr.SetFontSize(8);
                     message_display_->BeginStyle(time_attr);
-                    message_display_->WriteText("  " + wxString::FromUTF8(timestamp));
+                    message_display_->WriteText("  " + wxString(timestamp));
                     message_display_->EndStyle();
                     
                     message_display_->Newline();
@@ -366,7 +366,7 @@ void ChatWindow::ProcessQueuedMessages() {
                     time_attr.SetTextColour(wxColour(150, 150, 150));
                     time_attr.SetFontSize(8);
                     message_display_->BeginStyle(time_attr);
-                    message_display_->WriteText("  " + wxString::FromUTF8(timestamp));
+                    message_display_->WriteText("  " + wxString(timestamp));
                     message_display_->EndStyle();
                     
                     message_display_->Newline();
